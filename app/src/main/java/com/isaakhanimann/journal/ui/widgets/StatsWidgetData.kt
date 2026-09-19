@@ -55,8 +55,6 @@ object StatsWidgetData {
             .map { it.substanceName }
             .sorted()
 
-    /** Recomputes the summary for one widget and stores it. */
-
     fun deleteConfig(context: Context, appWidgetIds: IntArray) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().also { editor ->
@@ -68,16 +66,19 @@ object StatsWidgetData {
     }
 
     /**
-     * Recomputes the summary for one widget and stores it. All work runs on
-     * Dispatchers.Default: callers may be on the main thread (application
-     * scope, activity onResume), and the SQL aggregate does the counting so
+     * Recomputes the summary for one widget and stores it.
+     *
+     * Hops to [Dispatchers.IO] itself instead of trusting the caller: this is a suspend function
+     * reachable from anywhere, and only the DAO query inside happens to be dispatched by Room.
+     * The SharedPreferences read/write below runs on the caller's dispatcher, so calling this
+     * from the main thread would drop frames. The count itself comes from the SQL aggregate, so
      * no ingestion rows are materialized in Kotlin.
      */
     suspend fun refresh(
         context: Context,
         appWidgetId: Int,
         experienceRepository: ExperienceRepository
-    ) = withContext(Dispatchers.Default) {
+    ) = withContext(Dispatchers.IO) {
         val config = readConfig(context, appWidgetId)
         val to = Instant.now()
         val from = to.minus(config.days.toLong(), ChronoUnit.DAYS)
