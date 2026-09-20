@@ -22,6 +22,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:name=".di.JournalApplication"
@@ -53,6 +54,18 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data android:scheme="journal" android:host="open" />
+            </intent-filter>
+            <!--
+              Native OIDC sign-in callback from the notes server: the browser redirects to
+              dev.rustnote.app://auth?token=<raw> and MainActivity persists the bearer token.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="dev.rustnote.app" android:host="auth" />
             </intent-filter>
         </activity>
 

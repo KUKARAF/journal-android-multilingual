@@ -18,6 +18,10 @@
 
 package com.isaakhanimann.journal.di
 
+import com.isaakhanimann.journal.data.notes.NotesConfig
+import com.isaakhanimann.journal.data.notes.NotesSettingsRepository
+import com.isaakhanimann.journal.data.room.experiences.ExperienceRepository
+import com.isaakhanimann.journal.data.room.experiences.ExperienceRepositoryInterface
 import com.isaakhanimann.journal.data.substances.parse.SubstanceParser
 import com.isaakhanimann.journal.data.substances.parse.SubstanceParserInterface
 import com.isaakhanimann.journal.data.substances.repositories.SearchRepository
@@ -49,4 +53,16 @@ abstract class RepositoryModule {
     abstract fun bindSearchRepository(
         substanceRepository: SearchRepository
     ): SearchRepositoryInterface
+
+    @Binds
+    @Singleton
+    abstract fun bindExperienceRepository(
+        experienceRepository: ExperienceRepository
+    ): ExperienceRepositoryInterface
+
+    @Binds
+    @Singleton
+    abstract fun bindNotesConfig(
+        notesSettingsRepository: NotesSettingsRepository
+    ): NotesConfig
 }
