@@ -15,9 +15,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,7 +39,11 @@ import androidx.lifecycle.lifecycleScope
 import com.isaakhanimann.journal.di.JournalApplication
 import com.isaakhanimann.journal.localization.i18n
 import com.isaakhanimann.journal.ui.theme.JournalTheme
+import java.text.Collator
+import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Per-widget configuration: pick a substance (or all) and a rolling window.
@@ -56,19 +66,23 @@ class StatsWidgetConfigActivity : ComponentActivity() {
         val config = StatsWidgetData.readConfig(this, appWidgetId)
 
         lifecycleScope.launch {
-            val names = StatsWidgetData.readConfiguredSubstanceNames(
-                this@StatsWidgetConfigActivity,
-                app.experienceRepository
-            )
-            // Localized display names, keyed by the stored substance name.
-            val displayNames: Map<String, String> = names.associateWith { name ->
-                app.substanceRepo.getDisplayName(name)
+            val sortedSubstances: List<Pair<String, String>> = withContext(Dispatchers.Default) {
+                val names = StatsWidgetData.readConfiguredSubstanceNames(
+                    this@StatsWidgetConfigActivity,
+                    app.experienceRepository
+                )
+                // Localized display names, sorted naturally according to current locale (pinyin/alphabetical).
+                val collator = Collator.getInstance(Locale.getDefault())
+                names.map { name ->
+                    name to app.substanceRepo.getDisplayName(name)
+                }.sortedWith { a, b -> collator.compare(a.second, b.second) }
             }
+
             setContent {
                 JournalTheme {
                     Surface(color = MaterialTheme.colorScheme.background) {
                         StatsWidgetConfigContent(
-                            substanceDisplayNames = displayNames,
+                            substances = sortedSubstances,
                             initialSubstance = config.substanceName,
                             initialDays = config.days,
                             onSave = { substanceName, days ->
@@ -77,8 +91,8 @@ class StatsWidgetConfigActivity : ComponentActivity() {
                                     appWidgetId,
                                     StatsWidgetConfig(substanceName, days)
                                 )
-                                // New substance/window: enqueue a refresh for this widget.
-                                StatsWidgetSync.requestRefresh()
+                                // Refresh this widget specifically.
+                                StatsWidgetSync.requestRefresh(appWidgetIds = intArrayOf(appWidgetId))
                                 setResult(
                                     Activity.RESULT_OK,
                                     Intent().putExtra(
@@ -98,13 +112,27 @@ class StatsWidgetConfigActivity : ComponentActivity() {
 
 @Composable
 private fun StatsWidgetConfigContent(
-    substanceDisplayNames: Map<String, String>,
+    substances: List<Pair<String, String>>,
     initialSubstance: String?,
     initialDays: Int,
     onSave: (substanceName: String?, days: Int) -> Unit
 ) {
     var selectedSubstance by remember { mutableStateOf(initialSubstance) }
     var selectedDays by remember { mutableStateOf(initialDays) }
+    var searchText by remember { mutableStateOf("") }
+    val allSubstancesLabel = i18n("widget_config_all_substances")
+
+    val filteredSubstances = remember(substances, searchText) {
+        if (searchText.isBlank()) {
+            substances
+        } else {
+            substances.filter { (name, displayName) ->
+                displayName.contains(searchText, ignoreCase = true) ||
+                    name.contains(searchText, ignoreCase = true)
+            }
+        }
+    }
+
     Column(modifier = Modifier.padding(16.dp)) {
         Text(
             text = i18n("widget_config_title"),
@@ -114,7 +142,7 @@ private fun StatsWidgetConfigContent(
         LazyColumn(modifier = Modifier.weight(1f)) {
             // Period selection first, directly above "All substances", so it is
             // always visible without scrolling.
-            item {
+            item(key = "period_selection") {
                 Text(
                     text = i18n("widget_config_period"),
                     style = MaterialTheme.typography.titleMedium
@@ -133,15 +161,50 @@ private fun StatsWidgetConfigContent(
                         )
                     }
                 }
+                Spacer(modifier = Modifier.height(12.dp))
             }
-            item {
-                SubstanceRow(
-                    name = i18n("widget_config_all_substances"),
-                    isSelected = selectedSubstance == null,
-                    onClick = { selectedSubstance = null }
-                )
+
+            if (substances.size > 5) {
+                item(key = "search_field") {
+                    OutlinedTextField(
+                        value = searchText,
+                        onValueChange = { searchText = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        placeholder = { Text(i18n("search_substances_placeholder")) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = i18n("common_search")
+                            )
+                        },
+                        trailingIcon = {
+                            if (searchText.isNotEmpty()) {
+                                IconButton(onClick = { searchText = "" }) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = i18n("common_close")
+                                    )
+                                }
+                            }
+                        },
+                        singleLine = true
+                    )
+                }
             }
-            items(substanceDisplayNames.entries.toList()) { (name, displayName) ->
+
+            if (searchText.isBlank() || allSubstancesLabel.contains(searchText, ignoreCase = true)) {
+                item(key = "all_substances") {
+                    SubstanceRow(
+                        name = allSubstancesLabel,
+                        isSelected = selectedSubstance == null,
+                        onClick = { selectedSubstance = null }
+                    )
+                }
+            }
+
+            items(filteredSubstances, key = { it.first }) { (name, displayName) ->
                 SubstanceRow(
                     name = displayName,
                     isSelected = selectedSubstance == name,
