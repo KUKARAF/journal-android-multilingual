@@ -55,3 +55,55 @@ data class PutNoteRequest(
     val content: String,
     @SerialName("expected_version") val expectedVersion: String? = null
 )
+
+// ---- /api/stats shared-metrics channel ----
+
+/** One raw timed sample. `at` is `HH:MM` on GET (and may be null for an untimed sample). */
+@Serializable
+data class StatPoint(
+    val value: Double = 0.0,
+    val at: String? = null
+)
+
+/** Per-day aggregate plus its raw points. */
+@Serializable
+data class StatDay(
+    val date: String,
+    val value: Double = 0.0,
+    val points: List<StatPoint> = emptyList()
+)
+
+/** One registered metric's series over the queried window. */
+@Serializable
+data class StatSeries(
+    val metric: String,
+    val label: String? = null,
+    val unit: String? = null,
+    val chart: String? = null,
+    val agg: String? = null,
+    val days: List<StatDay> = emptyList()
+)
+
+/** Response of `GET /api/stats`. */
+@Serializable
+data class StatsResponse(
+    val series: List<StatSeries> = emptyList()
+)
+
+/** Body of `POST /api/stats`. `at` is `HHMM` (24h) or omitted for an untimed sample. */
+@Serializable
+data class PostStatRequest(
+    val key: String,
+    val value: Int,
+    val at: String? = null,
+    val date: String
+)
+
+/** Body of `PUT /api/stats/registry/{metric}`. */
+@Serializable
+data class StatRegistryRequest(
+    val unit: String,
+    val label: String,
+    val chart: String,
+    val agg: String
+)

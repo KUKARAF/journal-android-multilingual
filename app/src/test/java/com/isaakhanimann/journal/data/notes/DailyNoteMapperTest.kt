@@ -29,6 +29,7 @@ import com.isaakhanimann.journal.ui.tabs.settings.TimedNoteSerializable
 import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -117,5 +118,43 @@ class DailyNoteMapperTest {
     @Test
     fun dayIdUsesDiaryPrefix() {
         assertEquals("diary/2026-09-20", DailyNoteMapper.dayId(day))
+    }
+
+    @Test
+    fun mergePreservesForeignFrontmatterKeys() {
+        val existing = buildString {
+            append("---\n")
+            append("kcal: 2000\n")
+            append("vegan: true\n")
+            append("salt_g: 3\n")
+            append("alcohol:\n")
+            append("  - 12\n")
+            append("  - 8\n")
+            append("date: \"2026-09-20\"\n")
+            append("experienceCount: 1\n")
+            append("titles:\n")
+            append("  - \"stale title\"\n")
+            append("experiences: [{\"title\":\"stale\",\"text\":\"x\",\"sortDate\":1}]\n")
+            append("---\n")
+            append("\nstale body\n")
+        }
+
+        val rendered = DailyNoteMapper.render(day, sampleExperiences(), existing)
+
+        // Foreign keys (SoloForge aggregates + shared substance stat lines) survive untouched.
+        assertTrue(rendered.contains("kcal: 2000"))
+        assertTrue(rendered.contains("vegan: true"))
+        assertTrue(rendered.contains("salt_g: 3"))
+        assertTrue(rendered.contains("alcohol:"))
+        assertTrue(rendered.contains("  - 12"))
+        assertTrue(rendered.contains("  - 8"))
+
+        // This app's own keys are overwritten, not duplicated.
+        assertFalse(rendered.contains("stale title"))
+        assertEquals(1, Regex("(?m)^experiences: ").findAll(rendered).count())
+        assertEquals(1, Regex("(?m)^experienceCount: ").findAll(rendered).count())
+
+        // And the fresh experiences still round-trip out of the merged note.
+        assertEquals(sampleExperiences(), DailyNoteMapper.parseExperiences(rendered))
     }
 }

@@ -118,4 +118,61 @@ class NotesClientTest {
         val result = client.deleteNote("diary/2026-09-20")
         assertTrue(result.isSuccess)
     }
+
+    @Test
+    fun getStatsFlattensSeriesPerMetric() = runTest {
+        val engine = MockEngine { request ->
+            val metric = request.url.parameters["metric"]
+            respond(
+                content = """{"series":[{"metric":"$metric","label":"$metric","unit":"mg",""" +
+                    """"chart":"line","agg":"sum","days":[{"date":"2026-09-01","value":70,""" +
+                    """"points":[{"value":40,"at":"07:20"},{"value":30,"at":"15:00"}]}]}]}""",
+                status = HttpStatusCode.OK,
+                headers = jsonHeaders
+            )
+        }
+        val series = notesClient(engine)
+            .getStats(listOf("alcohol", "caffeine"), "2026-08-01", "2026-09-01")
+            .getOrThrow()
+        assertEquals(2, series.size)
+        assertEquals(setOf("alcohol", "caffeine"), series.map { it.metric }.toSet())
+        val firstDay = series.first().days.first()
+        assertEquals(2, firstDay.points.size)
+        assertEquals("07:20", firstDay.points.first().at)
+        assertEquals(40.0, firstDay.points.first().value, 0.0001)
+    }
+
+    @Test
+    fun postStatSendsHhmmBody() = runTest {
+        var seenBody: String? = null
+        var seenMethod: HttpMethod? = null
+        val engine = MockEngine { request ->
+            seenMethod = request.method
+            seenBody = (request.body as TextContent).text
+            respond("""{"note_id":"diary/2026-09-01","key":"alcohol"}""", HttpStatusCode.OK, jsonHeaders)
+        }
+        val result = notesClient(engine).postStat("alcohol", 24, "1830", "2026-09-01")
+        assertTrue(result.isSuccess)
+        assertEquals(HttpMethod.Post, seenMethod)
+        assertTrue(seenBody!!.contains("\"key\":\"alcohol\""))
+        assertTrue(seenBody!!.contains("\"value\":24"))
+        assertTrue(seenBody!!.contains("\"at\":\"1830\""))
+        assertTrue(seenBody!!.contains("\"date\":\"2026-09-01\""))
+    }
+
+    @Test
+    fun putStatRegistrySendsDefinition() = runTest {
+        var seenUrl: String? = null
+        var seenBody: String? = null
+        val engine = MockEngine { request ->
+            seenUrl = request.url.toString()
+            seenBody = (request.body as TextContent).text
+            respond("{}", HttpStatusCode.OK, jsonHeaders)
+        }
+        val result = notesClient(engine).putStatRegistry("caffeine", "mg", "Caffeine", "line", "sum")
+        assertTrue(result.isSuccess)
+        assertTrue(seenUrl!!.endsWith("/api/stats/registry/caffeine"))
+        assertTrue(seenBody!!.contains("\"unit\":\"mg\""))
+        assertTrue(seenBody!!.contains("\"agg\":\"sum\""))
+    }
 }

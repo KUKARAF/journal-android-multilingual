@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import com.isaakhanimann.journal.data.notes.NotesSettingsRepository
+import com.isaakhanimann.journal.data.notes.NotesSyncManager
 import com.isaakhanimann.journal.ui.main.MainScreen
 import com.isaakhanimann.journal.ui.theme.JournalTheme
 import com.isaakhanimann.journal.ui.widgets.StatsWidgetSync
@@ -42,11 +43,17 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var notesSettingsRepository: NotesSettingsRepository
 
+    @Inject
+    lateinit var notesSyncManager: NotesSyncManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleAuthDeepLink(intent)
+        // On-launch (not background) pull of shared substances from the notes server into Room,
+        // so alcohol/caffeine/nicotine logged in SoloForge become real ingestions here.
+        notesSyncManager.runStartupImport()
         // Screen-on refreshes for the effect-notification timeline register once
         // here; actual re-renders run through the activity's view tree below.
         val app = application as com.isaakhanimann.journal.di.JournalApplication

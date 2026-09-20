@@ -74,7 +74,7 @@ class ExperienceRepository @Inject constructor(
         ingestion,
         experience,
         substanceCompanion
-    ).also { JournalDataEvents.notifyJournalChanged() }.also { notesSyncManager.onExperienceDayChanged(experience.sortDate) }
+    ).also { JournalDataEvents.notifyJournalChanged() }.also { notesSyncManager.onExperienceDayChanged(experience.sortDate) }.also { notesSyncManager.onIngestionLoggedForStats(ingestion) }
 
     override suspend fun insertEverything(journalExport: JournalExport) =
         experienceDao.insertEverything(journalExport)
@@ -92,7 +92,7 @@ class ExperienceRepository @Inject constructor(
     ) = experienceDao.insertIngestionAndCompanion(
         ingestion,
         substanceCompanion
-    ).also { JournalDataEvents.notifyJournalChanged() }.also { notesSyncManager.onExperienceChanged(ingestion.experienceId) }
+    ).also { JournalDataEvents.notifyJournalChanged() }.also { notesSyncManager.onExperienceChanged(ingestion.experienceId) }.also { notesSyncManager.onIngestionLoggedForStats(ingestion) }
 
     override suspend fun deleteEverything() = experienceDao.deleteEverything()
         .also { JournalDataEvents.notifyJournalChanged() }

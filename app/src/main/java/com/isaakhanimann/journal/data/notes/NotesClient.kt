@@ -24,6 +24,7 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
@@ -113,6 +114,69 @@ class NotesClient @Inject constructor(
         val response = httpClient.delete(url) { applyAuth(token) }
         if (response.status == HttpStatusCode.NotFound) {
             return@runCatching
+        }
+        response.orThrow()
+    }
+
+    // ---- /api/stats shared-metrics channel ----
+
+    /**
+     * GET the aggregated series for each of [metrics] over the inclusive `from`..`to` window.
+     * The server only returns registered metrics, so this issues one request per metric and
+     * flattens the results (a 404 for a metric is treated as "no data").
+     */
+    suspend fun getStats(
+        metrics: List<String>,
+        from: String,
+        to: String
+    ): Result<List<StatSeries>> = runCatching {
+        val token = config.bearerToken()
+        val base = baseUrl()
+        val series = mutableListOf<StatSeries>()
+        for (metric in metrics) {
+            val response = httpClient.get("$base/api/stats") {
+                applyAuth(token)
+                parameter("metric", metric)
+                parameter("from", from)
+                parameter("to", to)
+            }
+            if (response.status == HttpStatusCode.NotFound) {
+                continue
+            }
+            series += response.orThrow().body<StatsResponse>().series
+        }
+        series
+    }
+
+    /** POST a single numeric sample. `at` is `HHMM` (24h) or null for an untimed sample. */
+    suspend fun postStat(
+        key: String,
+        value: Int,
+        at: String?,
+        date: String
+    ): Result<Unit> = runCatching {
+        val token = config.bearerToken()
+        val response = httpClient.post("${baseUrl()}/api/stats") {
+            applyAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(PostStatRequest(key = key, value = value, at = at, date = date))
+        }
+        response.orThrow()
+    }
+
+    /** Create/update a metric definition (idempotent). */
+    suspend fun putStatRegistry(
+        metric: String,
+        unit: String,
+        label: String,
+        chart: String,
+        agg: String
+    ): Result<Unit> = runCatching {
+        val token = config.bearerToken()
+        val response = httpClient.put("${baseUrl()}/api/stats/registry/$metric") {
+            applyAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(StatRegistryRequest(unit = unit, label = label, chart = chart, agg = agg))
         }
         response.orThrow()
     }

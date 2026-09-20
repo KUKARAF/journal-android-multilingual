@@ -46,11 +46,28 @@ object DailyNoteMapper {
     private const val OPEN_FENCE = "---"
     private const val EXPERIENCES_KEY = "experiences:"
 
+    // The frontmatter keys this app owns. On a merge these are overwritten; every other key
+    // (SoloForge's kcal/vegan/workout/salt_g and the alcohol/caffeine/nicotine stat lines) is kept.
+    private val OWNED_KEYS = setOf("date", "experienceCount", "titles", "experiences")
+
     /** Server id / path for a given day, e.g. `diary/2026-09-20`. */
     fun dayId(date: LocalDate): String = "diary/$date"
 
-    fun toMarkdown(date: LocalDate, experiences: List<ExperienceSerializable>): String {
-        val experiencesJson = json.encodeToString(experiences)
+    /** Renders a fresh daily note (no foreign frontmatter to preserve). */
+    fun toMarkdown(date: LocalDate, experiences: List<ExperienceSerializable>): String =
+        render(date, experiences, existingMarkdown = null)
+
+    /**
+     * Renders the daily note, MERGING into [existingMarkdown] when provided: this app's own keys
+     * are overwritten and every other frontmatter key is preserved verbatim, so a write from the
+     * journal never clobbers SoloForge's aggregate keys or the shared substance stat lines.
+     */
+    fun render(
+        date: LocalDate,
+        experiences: List<ExperienceSerializable>,
+        existingMarkdown: String?
+    ): String {
+        val foreignLines = existingMarkdown?.let { foreignFrontmatterLines(it) } ?: emptyList()
         return buildString {
             append(OPEN_FENCE).append('\n')
             append("date: ").append(jsonScalar(date.toString())).append('\n')
@@ -61,7 +78,8 @@ object DailyNoteMapper {
                     append("  - ").append(jsonScalar(experience.title)).append('\n')
                 }
             }
-            append(EXPERIENCES_KEY).append(' ').append(experiencesJson).append('\n')
+            append(EXPERIENCES_KEY).append(' ').append(json.encodeToString(experiences)).append('\n')
+            foreignLines.forEach { append(it).append('\n') }
             append(OPEN_FENCE).append('\n')
             append('\n')
             experiences.forEachIndexed { index, experience ->
@@ -74,6 +92,44 @@ object DailyNoteMapper {
             append('\n')
         }
     }
+
+    // Returns the frontmatter lines of [markdown] with this app's own key blocks removed, so the
+    // remaining foreign blocks (including their indented continuation lines) can be re-emitted.
+    private fun foreignFrontmatterLines(markdown: String): List<String> {
+        val normalized = markdown.replace("\r\n", "\n")
+        if (!normalized.startsWith(OPEN_FENCE)) return emptyList()
+        val afterOpen = normalized.substringAfter("$OPEN_FENCE\n", "")
+        if (!afterOpen.contains("\n$OPEN_FENCE")) return emptyList()
+        val frontMatter = afterOpen.substringBefore("\n$OPEN_FENCE")
+        val lines = frontMatter.split("\n")
+        val kept = mutableListOf<String>()
+        var i = 0
+        while (i < lines.size) {
+            val line = lines[i]
+            if (line.isBlank()) {
+                i++
+                continue
+            }
+            val isTopLevelKey = !line.first().isWhitespace() && TOP_LEVEL_KEY.containsMatchIn(line)
+            if (isTopLevelKey) {
+                val key = line.substringBefore(':').trim()
+                val block = mutableListOf(line)
+                var j = i + 1
+                while (j < lines.size && lines[j].isNotEmpty() && lines[j].first().isWhitespace()) {
+                    block += lines[j]
+                    j++
+                }
+                if (key !in OWNED_KEYS) kept += block
+                i = j
+            } else {
+                kept += line
+                i++
+            }
+        }
+        return kept
+    }
+
+    private val TOP_LEVEL_KEY = Regex("^[A-Za-z0-9_.-]+:")
 
     /** Extracts the structured experiences from the YAML frontmatter of a daily note. */
     fun parseExperiences(markdown: String): List<ExperienceSerializable> {
