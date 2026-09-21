@@ -37,7 +37,8 @@ object SubstanceStatsCatalog {
     val all: List<SubstanceStat> = listOf(
         SubstanceStat(key = "alcohol", substanceName = "Alcohol", unit = "g", label = "Alcohol", chart = "bar", agg = "sum"),
         SubstanceStat(key = "caffeine", substanceName = "Caffeine", unit = "mg", label = "Caffeine", chart = "line", agg = "sum"),
-        SubstanceStat(key = "nicotine", substanceName = "Nicotine", unit = "mg", label = "Nicotine", chart = "bar", agg = "sum")
+        SubstanceStat(key = "nicotine", substanceName = "Nicotine", unit = "mg", label = "Nicotine", chart = "bar", agg = "sum"),
+        SubstanceStat(key = "sugar", substanceName = "Sugar", unit = "g", label = "Sugar", chart = "bar", agg = "sum")
     )
 
     val metricKeys: List<String> = all.map { it.key }

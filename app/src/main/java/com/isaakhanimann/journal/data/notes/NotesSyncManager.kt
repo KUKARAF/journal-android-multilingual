@@ -257,6 +257,7 @@ class NotesSyncManager @Inject constructor(
     private fun colorFor(key: String): AdaptiveColor = when (key) {
         "alcohol" -> AdaptiveColor.RED
         "caffeine" -> AdaptiveColor.ORANGE
+        "sugar" -> AdaptiveColor.YELLOW
         else -> AdaptiveColor.GREEN
     }
 
