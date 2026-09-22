@@ -40,7 +40,12 @@ jobs:
           cache: gradle
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+
+      - name: Install platform tools and accept licenses
+        run: |
+          sdkmanager "platform-tools"
+          yes | sdkmanager --licenses
 
       - name: Grant Gradle execute permission
         run: chmod +x ./gradlew
