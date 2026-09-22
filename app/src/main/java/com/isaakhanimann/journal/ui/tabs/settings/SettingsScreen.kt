@@ -93,6 +93,7 @@ import coil.request.ImageRequest
 import com.isaakhanimann.journal.data.achievement.AchievementLogoButton
 import com.isaakhanimann.journal.localization.i18n
 import com.isaakhanimann.journal.ui.tabs.journal.experience.components.CardWithTitle
+import com.isaakhanimann.journal.ui.tabs.settings.notes.NotesSyncCard
 import com.isaakhanimann.journal.ui.main.bottomBarNestedScroll
 import com.isaakhanimann.journal.ui.main.bottomBarOverlayDp
 import com.isaakhanimann.journal.ui.theme.horizontalPadding
@@ -454,6 +455,8 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            NotesSyncCard()
 
             CardWithTitle(title = i18n("settings_extension_pack"), innerPaddingHorizontal = 0.dp) {
                 SettingsButton(

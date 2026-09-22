@@ -18,7 +18,9 @@
 
 package com.isaakhanimann.journal
 
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,18 +29,31 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
+import com.isaakhanimann.journal.data.notes.NotesSettingsRepository
+import com.isaakhanimann.journal.data.notes.NotesSyncManager
 import com.isaakhanimann.journal.ui.main.MainScreen
 import com.isaakhanimann.journal.ui.theme.JournalTheme
 import com.isaakhanimann.journal.ui.widgets.StatsWidgetSync
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
+
+    @Inject
+    lateinit var notesSettingsRepository: NotesSettingsRepository
+
+    @Inject
+    lateinit var notesSyncManager: NotesSyncManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        handleAuthDeepLink(intent)
+        // On-launch (not background) pull of shared substances from the notes server into Room,
+        // so alcohol/caffeine/nicotine logged in SoloForge become real ingestions here.
+        notesSyncManager.runStartupImport()
         // Screen-on refreshes for the effect-notification timeline register once
         // here; actual re-renders run through the activity's view tree below.
         val app = application as com.isaakhanimann.journal.di.JournalApplication
@@ -54,6 +69,27 @@ class MainActivity : FragmentActivity() {
                 ) {
                     MainScreen()
                 }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleAuthDeepLink(intent)
+    }
+
+    /**
+     * Captures the native OIDC callback dev.rustnote.app://auth?token=<raw> and persists the raw
+     * bearer token to encrypted storage, so [NotesClient] can authenticate afterwards.
+     */
+    private fun handleAuthDeepLink(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme == "dev.rustnote.app" && data.host == "auth") {
+            val token = data.getQueryParameter("token")
+            if (!token.isNullOrBlank()) {
+                notesSettingsRepository.setToken(token)
+                Toast.makeText(this, "Connected to notes server", Toast.LENGTH_SHORT).show()
             }
         }
     }

@@ -47,6 +47,10 @@ calendar = "2.10.1"
 pinIn = "1.6.0"
 coil = "2.7.0"
 
+# 网络 & 加密存储 (notes.osmosis.page sync)
+ktor = "3.6.0"
+securityCrypto = "1.1.0"
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
@@ -110,6 +114,14 @@ kizitonwose-calendar-compose = { module = "com.kizitonwose.calendar:compose", ve
 towdium-pinin = { module = "com.github.Towdium:PinIn", version.ref = "pinIn" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 androidx-browser = { module = "androidx.browser:browser", version.ref = "androidxbrowser" }
+
+# Ktor client (notes server sync) & encrypted token storage
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
+androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
 androidx-fragment = { module = "androidx.fragment:fragment-ktx", version.ref = "fragment" }
 androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 androidx-work = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
